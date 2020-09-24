@@ -7,11 +7,11 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 
 batch_size = 32
-epochs = 10
+epochs = 12
 
 x = np.load("input_data/x.npy")
 y = np.load("input_data/y.npy")
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=0)
 
 train_image_generator = ImageDataGenerator(featurewise_center=False,
                                            samplewise_center=False,
@@ -33,10 +33,12 @@ val_data_gen = validation_image_generator.flow(x_test, y_test, batch_size=batch_
 
 learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy',
                                             patience=3,
-                                            verbose=1,
                                             factor=0.5,
                                             min_lr=0.0001)
 
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_accuracy', min_delta=0.005, patience=3, mode='auto', restore_best_weights=False
+)
 
 input_shape = (28, 28, 1)
 
@@ -68,31 +70,30 @@ history = model.fit_generator(
     epochs=epochs,
     validation_data=val_data_gen,
     validation_steps=len(x_test) // batch_size,
-    callbacks=[learning_rate_reduction],
-    verbose=1
+    callbacks=[learning_rate_reduction, early_stopping]
 )
 
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
+# acc = history.history['accuracy']
+# val_acc = history.history['val_accuracy']
 
-loss = history.history['loss']
-val_loss = history.history['val_loss']
+# loss = history.history['loss']
+# val_loss = history.history['val_loss']
 
-epochs_range = range(epochs)
-
-plt.figure(figsize=(8, 8))
-plt.subplot(1, 2, 1)
-plt.plot(epochs_range, acc, label='Training Accuracy')
-plt.plot(epochs_range, val_acc, label='Validation Accuracy')
-plt.legend(loc='lower right')
-plt.title('Training and Validation Accuracy')
-
-plt.subplot(1, 2, 2)
-plt.plot(epochs_range, loss, label='Training Loss')
-plt.plot(epochs_range, val_loss, label='Validation Loss')
-plt.legend(loc='upper right')
-plt.title('Training and Validation Loss')
-plt.show()
+# epochs_range = range(epochs)
+#
+# plt.figure(figsize=(8, 8))
+# plt.subplot(1, 2, 1)
+# plt.plot(epochs_range, acc, label='Training Accuracy')
+# plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+# plt.legend(loc='lower right')
+# plt.title('Training and Validation Accuracy')
+#
+# plt.subplot(1, 2, 2)
+# plt.plot(epochs_range, loss, label='Training Loss')
+# plt.plot(epochs_range, val_loss, label='Validation Loss')
+# plt.legend(loc='upper right')
+# plt.title('Training and Validation Loss')
+# plt.show()
 
 model.save('model.h5')
 
