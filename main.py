@@ -1,5 +1,6 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Conv2D, Dropout, Flatten, MaxPooling2D
+from tensorflow.keras.layers import Dense, Conv2D, Dropout, Flatten, MaxPooling2D, BatchNormalization
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -10,21 +11,32 @@ epochs = 10
 
 x = np.load("input_data/x.npy")
 y = np.load("input_data/y.npy")
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=0)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
 
-train_image_generator = ImageDataGenerator(rescale=1./255,
+train_image_generator = ImageDataGenerator(featurewise_center=False,
+                                           samplewise_center=False,
+                                           featurewise_std_normalization=False,
+                                           samplewise_std_normalization=False,
+                                           zca_whitening=False,
+                                           rescale=1./255,
                                            rotation_range=45,
                                            width_shift_range=.15,
                                            height_shift_range=.15,
                                            zoom_range=0.25,
-                                           brightness_range=[0.5, 1.5]
+                                           brightness_range=[0.5, 1.5],
+                                           fill_mode='constant',
+                                           cval=0.0
                                            )
 validation_image_generator = ImageDataGenerator(rescale=1./255)
 train_data_gen = train_image_generator.flow(x_train, y_train, batch_size=batch_size, shuffle=True)
 val_data_gen = validation_image_generator.flow(x_test, y_test, batch_size=batch_size)
 
+learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy',
+                                            patience=3,
+                                            verbose=1,
+                                            factor=0.5,
+                                            min_lr=0.0001)
 
-# x_train, x_test = x_train/255.0, x_test/255.0
 
 input_shape = (28, 28, 1)
 
@@ -40,6 +52,7 @@ model = tf.keras.Sequential([
     Dense(128, activation='relu', use_bias=True),
     Dropout(0.2),
     Dense(128, activation='relu', use_bias=True),
+    BatchNormalization(),
     Dense(10, activation=tf.nn.softmax, use_bias=True)
 ])
 
@@ -54,7 +67,9 @@ history = model.fit_generator(
     steps_per_epoch=len(x_train) // batch_size,
     epochs=epochs,
     validation_data=val_data_gen,
-    validation_steps=len(x_test) // batch_size
+    validation_steps=len(x_test) // batch_size,
+    callbacks=[learning_rate_reduction],
+    verbose=1
 )
 
 acc = history.history['accuracy']
